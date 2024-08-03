@@ -37,7 +37,7 @@ class Projectile{
     }
     update(){
         this.x += this.speed;
-        if(this.x > this.game.width){
+        if(this.x > this.game.width * 0.98){
             this.markedForDeletion = true;
         }
     }
@@ -82,9 +82,11 @@ class Player{
     }
 
     shoot(){
-        const projectile = new Projectile(this.game, this.x, this.y );
-        this.projectiles.push(projectile);
-        // console.log(this.projectiles);
+        if (this.game.ammo > 0){ 
+            const projectile = new Projectile(this.game, this.x, this.y );
+            this.projectiles.push(projectile);
+            this.game.ammo--;
+        }
     }
 }
 class Enemy{
@@ -93,10 +95,8 @@ class Enemy{
         this.x = this.game.width;
         this.speedX = Math.random() * -1,5 - 0.5;
         this.markedForDeletion = false;
-    }
-    draw(context){
-        context.fillStyle = 'red';
-        context.fillRect(this.x, this.y, this.width, this.height);
+        this.lives = 2;
+        this.score = this.lives;
     }
     update(){
         this.x += this.speedX;
@@ -104,43 +104,120 @@ class Enemy{
             this.markedForDeletion = true;
         }
     }
+    draw(context){
+        context.fillStyle = 'red';
+        context.fillRect(this.x, this.y, this.width, this.height);
+        context.fillStyle = 'black';
+        context.font = '20px Helvetica';
+        context.fillText(this.lives, this.x, this.y);
+    }
+   
 }
 class Angler1 extends Enemy{
     constructor(game){
         super(game);
-        this.width = 228;
-        this.height = 169;
+        this.width = 228 * 0.2;
+        this.height = 169 * 0.2;
         this.y = Math.random() * (this.game.height * 0.9 - this.height);
     }
 
 }
 class Layer{}
 class Background{}
-// class UI{
-//     constructor(game){
-//         this.game = game;
-//         this.fontSize = 25;
-//         this.fontFamily = 'Helvetica';
-//         this.color = 'white';
-//     }
-// }
+class UI{
+    constructor(game){
+        this.game = game;
+        this.fontSize = 25;
+        this.fontFamily = 'Helvetica';
+        this.color = 'white';
+    }
+    draw(context){
+        context.save();
+        context.shadowOffsetX = 2;
+        context.shadowOffsetY = 2;
+        context.shadowColor = 'black';
+        context.font = this.fontSize + 'px ' + this.fontFamily;
+        context.fillText(`Score: ${this.game.score}`, 20, 40);
+        context.fillStyle = this.color;
+        for(let i = 0; i < this.game.ammo; i++){
+            context.fillRect(20 + 5 * i,50,3,20);
+        }
+        const timeRemaining = Math.max(0, this.game.timeLimit - this.game.gameTime);
+        context.fillText(`Time: ${Math.floor(timeRemaining / 1000)}`, this.game.width - 200, 40);
+            if(this.game.gameOver){
+            context.textAlign = 'center';
+            let message1;
+            let message2;
+            if(this.game.score >= this.game.winningScore){
+                message1 = 'You Win!';
+                message2 = 'well done!';
+            }else{
+                message1 = 'Game Over';
+                message2 = 'try again';
+            }
+            context.font = '50px ' + this.fontFamily;
+            context.fillText(message1, this.game.width / 2, this.game.height / 2);
+            context.font = '25px ' + this.fontFamily;
+            context.fillText(message2, this.game.width / 2, this.game.height / 2 + 50);
+        }
+        context.restore();
+    }
+}
 class Game{
     constructor(width, height){
         this.width = width;
         this.height = height;
         this.player = new Player(this);
         this.input= new InputHandler(this);
-        // this.ui = new UI(this);
+        this.ui = new UI(this);
         this.keys = [];
+        this.ammo = 20;
+        this.maxAmmo = 50;
+        this.ammoTimer = 0;
+        this.ammoInterval = 500;
         this.enemies = [];
         this.enemyTimer = 0;
-        this.enemyInterval = 1000;
+        this.enemyInterval = 2000;
         this.gameOver = false;
+        this.score = 0;
+        this.winningScore = 10;
+        this.gameTime = 0;
+        this.timeLimit = 30000;
     }
-    update(){
+    update(deltaTime){
+        if (!this.gameOver) {
+            this.gameTime += deltaTime;
+        }
+        if(this.gameTime > this.timeLimit){
+            this.gameOver = true;
+        }
         this.player.update();
+        if(this.ammo < this.maxAmmo && this.ammoTimer > this.ammoInterval){
+            this.ammo++;
+            this.ammoTimer = 0;
+        } else {
+            this.ammoTimer += deltaTime; 
+        }
         this.enemies.forEach((enemy) => {
             enemy.update();
+            if (this.checkCollision(this.player, enemy)){
+                enemy.markedForDeletion = true;
+            }
+            this.player.projectiles.forEach((projectile) => {
+                if(this.checkCollision(projectile, enemy)){
+                    enemy.lives--;
+                    projectile.markedForDeletion = true;
+                    if(enemy.lives <= 0){
+                        enemy.markedForDeletion = true;
+                        if (!this.gameOver) {
+                            this.score += enemy.score;
+                        }
+                        if(this.score >= this.winningScore){
+                            this.gameOver = true;
+                        }
+                    }
+                }
+            });
         });
         this.enemies = this.enemies.filter((enemy) => !enemy.markedForDeletion);
         if (this.enemyTimer > this.enemyInterval && !this.gameOver){
@@ -149,12 +226,12 @@ class Game{
             
             
         }else{
-            this.enemyTimer += 2.3; // to be replaced with deltaTime
+            this.enemyTimer += deltaTime; 
         }
     }
     draw(context){
         this.player.draw(context);
-        // this.ui.draw(context);
+        this.ui.draw(context);
         this.enemies.forEach((enemy) => {
             enemy.draw(context);
         });
@@ -166,7 +243,7 @@ class Game{
         // console.log(this.enemies);
     }
 
-    checkCollisions(rect1, rect2){
+    checkCollision(rect1, rect2){
         return(
             rect1.x < rect2.x + rect2.width &&
             rect1.x + rect1.width > rect2.x &&
@@ -177,12 +254,15 @@ class Game{
 }
 
 const game = new Game(canvas.width, canvas.height);
-function animate(){
+let lastTime = 0;
+function animate(timeStamp){
+    const deltaTime = timeStamp - lastTime;
+    lastTime = timeStamp;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    game.update();
+    game.update(deltaTime);
     game.draw(ctx);
     requestAnimationFrame(animate);
 }
-animate();
+animate(0);
     
 })
