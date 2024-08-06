@@ -341,12 +341,13 @@ window.addEventListener("load", function () {
   class Explosion {
     constructor(game, x, y) {
       this.game = game;
-      this.x = x;
-      this.y = y;
-      this.width = 100;
-      this.height = 100;
       this.frameX = 0;
       this.spriteHeight = 200;
+      this.spriteWidth = 200;
+      this.width = this.spriteWidth;
+      this.height = this.spriteHeight;
+      this.x = x - this.width * 0.5;
+      this.y = y - this.height * 0.5;
       this.fps = 15;
       this.timer = 0;
       this.interval = 1000 / this.fps;
@@ -354,21 +355,35 @@ window.addEventListener("load", function () {
       this.maxFrame = 8;
     }
     update(deltaTime) {
-      this.frameX++;
+      this.x -= this.game.speed;
+      if (this.timer > this.interval) {
+        this.frameX++;
+        this.timer = 0;
+      } else {
+        this.timer += deltaTime;
+      }
+      if (this.frameX >= this.maxFrame) {
+        this.markedForDeletion = true;
+      }
     }
     draw(context) {
-      context.drawImage(this.image, this.x, this.y);
+      context.drawImage(
+        this.image,
+        this.frameX * this.spriteWidth,
+        0,
+        this.spriteWidth,
+        this.spriteHeight,
+        this.x,
+        this.y,
+        this.width,
+        this.height
+      );
     }
   }
   class SmokeExplosion extends Explosion {
     constructor(game, x, y) {
       super(game, x, y);
       this.image = document.getElementById("smokeExplosion");
-      this.spriteWidth = 200;
-      this.width = this.spriteWidth;
-      this.height = this.spriteHeight;
-      this.x = x - this.width * 0.5;
-      this.y = y - this.height * 0.5;
     }
   }
   class FireExplosion extends Explosion {
@@ -478,7 +493,7 @@ window.addEventListener("load", function () {
         particle.update();
       });
       this.particles = this.particles.filter((p) => !p.markedForDeletion);
-      this.explosions.forEach((e) => e.update());
+      this.explosions.forEach((e) => e.update(deltaTime));
       this.explosions = this.explosions.filter((e) => !e.markedForDeletion);
       this.enemies.forEach((enemy) => {
         enemy.update();
@@ -567,11 +582,13 @@ window.addEventListener("load", function () {
         this.enemies.push(new LuckyFish(this));
       }
     }
-addExplosion(enemy) {
-  const randomize = Math.random();
-  if (randomize < 1){
-    this.explosions.push(new SmokeExplosion(this, enemy.x, enemy.y));
-  }
+    addExplosion(enemy) {
+      const randomize = Math.random();
+      if (randomize < 0.5) {
+        this.explosions.push(new SmokeExplosion(this, enemy.x + enemy.width * 0.5, enemy.y + enemy.height * 0.5));
+      }else {
+        this.explosions.push(new FireExplosion(this, enemy.x + enemy.width * 0.5, enemy.y + enemy.height * 0.5));
+      }
     }
     checkCollision(rect1, rect2) {
       return (
@@ -589,8 +606,8 @@ addExplosion(enemy) {
     const deltaTime = timeStamp - lastTime;
     lastTime = timeStamp;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    game.update(deltaTime);
     game.draw(ctx);
+    game.update(deltaTime);
     requestAnimationFrame(animate);
   }
   animate(0);
