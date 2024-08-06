@@ -1,7 +1,7 @@
 window.addEventListener("load", function () {
   const canvas = document.getElementById("myCanvas");
   const ctx = canvas.getContext("2d");
-  canvas.width = 700;
+  canvas.width = 1000;
   canvas.height = 500;
 
   class InputHandler {
@@ -269,7 +269,7 @@ window.addEventListener("load", function () {
       this.y = Math.random() * (this.game.height * 0.9 - this.height);
       this.image = document.getElementById("angler2");
       this.frameY = Math.floor(Math.random() * 2);
-      this.lives = 4;
+      this.lives = 5;
     }
   }
   class LuckyFish extends Enemy {
@@ -457,7 +457,7 @@ window.addEventListener("load", function () {
       this.ammo = 20;
       this.maxAmmo = 50;
       this.ammoTimer = 0;
-      this.ammoInterval = 500;
+      this.ammoInterval = 350;
       this.enemies = [];
       this.particles = [];
       this.explosions = [];
@@ -465,7 +465,7 @@ window.addEventListener("load", function () {
       this.enemyInterval = 2000;
       this.gameOver = false;
       this.score = 0;
-      this.winningScore = 10;
+      this.winningScore = 40;
       this.gameTime = 0;
       this.timeLimit = 30000;
       this.speed = 1;
@@ -511,7 +511,9 @@ window.addEventListener("load", function () {
           }
           if (enemy.type === "lucky") {
             this.player.enterPowerUp();
-          } else {
+          } else if (this.score<=0) {
+            this.score = 0;
+          } else if (!this.gameOver) {
             this.score--;
           }
         }
@@ -541,9 +543,9 @@ window.addEventListener("load", function () {
               if (!this.gameOver) {
                 this.score += enemy.score;
               }
-              if (this.score >= this.winningScore) {
-                this.gameOver = true;
-              }
+              // if (this.score >= this.winningScore) {
+              //   this.gameOver = true;
+              // }
             }
           }
         });
